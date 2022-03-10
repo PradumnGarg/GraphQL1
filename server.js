@@ -13,6 +13,8 @@ const{
     GraphQLString,
     GraphQLList,
     GraphQLInt,
+    GraphQLFloat,
+    GraphQLBoolean,
     GraphQLNonNull
 }=require('graphql');
 
@@ -35,7 +37,7 @@ const employeeschema={
         employmentType:String,
     },
     employeeId:String,
-    workspace:String,
+    workspace:Mongoose.Types.ObjectId,
 };
 
 const taskschema={
@@ -45,14 +47,37 @@ const taskschema={
     taskStatus:String,
     },
     createdBy:String,
-    workspace:String,
+    workspace:Mongoose.Types.ObjectId,
 };
 
+
+const attendanceschema={
+ 
+    employeeId:String,
+    locationName:String,
+    location: {
+        type:{
+        type: String,
+        enum: ['Point', 'Polygon']
+      },
+      coordinates: [Number]
+    },
+    workspace:Mongoose.Types.ObjectId,
+    date:String,
+    loginTime:String,
+    logoutTime:String,
+    present:Boolean,
+    isLeave:Boolean,
+    isHalfDay:Boolean
+
+}
 
 
 const employees=Mongoose.model('employees',employeeschema);
 
 const tasks=Mongoose.model('tasks',taskschema);
+
+const attendances=Mongoose.model('attendances',attendanceschema);
 
 
 
@@ -85,8 +110,26 @@ const EmployeeType = new GraphQLObjectType({
         workspace: { type: new GraphQLNonNull(GraphQLString) },
         tasks: {
             type: new GraphQLList(TaskType),
+        
             resolve(parent) {
-                return tasks.findOne({workspace:parent.workspace});
+            
+                return tasks.find(
+                        { assignee:{$in:parent.employeeId},
+                        workspace:parent.workspace}
+                     
+                    
+                );
+            }
+        },
+        attendances: {
+            type: new GraphQLList(AttendanceType),
+
+            resolve(parent) {
+                return attendances.find(
+                        { employeeId:parent.employeeId,
+                        workspace:parent.workspace}
+
+                );
             }
         }
     })
@@ -118,8 +161,50 @@ const TaskType = new GraphQLObjectType({
     },
     workspace: { type: new GraphQLNonNull(GraphQLString) },
     createdBy: { type: new GraphQLNonNull(GraphQLString) },
+
+//     employees: {
+//         type: new GraphQLList(EmployeeType),
+//         resolve(parent) {
+//             return employees.find({
+//                 $and:[
+//                     {  $in:{employeeId, parent.assignee } },
+//                     {workspace:parent.workspace}
+//                 ]
+//             });
+// }
+//     }
 })
 })
+
+
+const AttendanceType = new GraphQLObjectType({
+    name: 'Attendances',
+    description: 'This represents list of attendances',
+    fields: () => ({
+        employeeId: { type: new GraphQLNonNull(GraphQLString) },
+        locationName: { type: GraphQLString},
+        location:{
+            type:new GraphQLNonNull(new GraphQLObjectType({
+                name:'locationData',
+                description:'This represents location data',
+                fields:()=>({
+                    type:{type:GraphQLString},
+                    coordinates:{type:new GraphQLList(GraphQLFloat)}
+                })
+            }))
+        },
+        workspace: { type: new GraphQLNonNull(GraphQLString) },
+        date: { type: GraphQLString },
+        loginTime: { type: GraphQLString },
+        logoutTime: { type: GraphQLString },
+        present: { type: new GraphQLNonNull(GraphQLBoolean) },
+        isLeave: { type: new GraphQLNonNull(GraphQLBoolean) },
+        isHalfDay: { type: new GraphQLNonNull(GraphQLBoolean) },
+    })
+})
+
+
+            
 
 
 
@@ -163,7 +248,15 @@ const RootQueryType = new GraphQLObjectType({
                  });
            }
         
-     }
+     },
+        attendances:{
+            type: new GraphQLList(AttendanceType),
+            description: 'List of attendances',
+            resolve() {
+                return attendances.find({});
+            }
+        },
+
 
     
 })
@@ -173,7 +266,6 @@ const RootQueryType = new GraphQLObjectType({
 
 const schema=new GraphQLSchema({
     query: RootQueryType,
-    // mutation: RootMutationType
 });
 
 
