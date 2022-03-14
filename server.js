@@ -114,10 +114,22 @@ const EmployeeType = new GraphQLObjectType({
             resolve(parent) {
             
                 return tasks.find(
-                        { assignee:{$in:parent.employeeId},
-                        workspace:parent.workspace}
+                    { workspace:parent.workspace,
+                        "data.assignee":parent.employeeId
+                    }
+                    // // [{
+                    // //     $lookup: {
+                    // //         from: 'employees',
+                    // //         localField: 'workspace',
+                    // //         foreignField: 'workspace',
+                    // //         as: 'tasks' 
+                    // //     }
+                    // // }
+
+                    //     // { assignee:{$in:parent.employeeId},
+                    //     // workspace:parent.workspace}
                      
-                    
+                    // ]
                 );
             }
         },
@@ -151,13 +163,7 @@ const TaskType = new GraphQLObjectType({
                 })
             }))
 
-        // id: { type: new  GraphQLNonNull(GraphQLInt)},
-        // name: { type: new GraphQLNonNull(GraphQLString )},
-        // books:{type: new GraphQLList(BookType),
-        //     resolve(parent){
-        //         return books.find({authorId:parent.id})
-        //     }
-        // }
+
     },
     workspace: { type: new GraphQLNonNull(GraphQLString) },
     createdBy: { type: new GraphQLNonNull(GraphQLString) },
@@ -212,21 +218,17 @@ const RootQueryType = new GraphQLObjectType({
     name: 'Query',
     description: 'Root Query',
     fields: () => ({
-        employees: {
-            type: new GraphQLList(EmployeeType),
-            description: 'List of employees',
-            resolve() {
-                return  employees.find({});
-            }    
-        },
-        tasks:{
-            type: new GraphQLList(TaskType),
-            description: 'List of tasks',
-            resolve() {
-                return tasks.find({});
+        employeename: {
+            type:  EmployeeType,
+            description: 'Single Employee',
+            args: {
+                name: { type: GraphQLString }
+            },
+            resolve (parent,args) {   
+               return employees.findOne({"data.name":args.name});
             }
         },
-        employee: {
+        employeeid: {
             type:  EmployeeType,
             description: 'Single Employee',
             args: {
@@ -236,28 +238,6 @@ const RootQueryType = new GraphQLObjectType({
                return employees.findOne({employeeId:args.id});
             }
         }, 
-        task:{
-            type: TaskType,
-            description: 'Single task',
-            args: {
-                id: { type: GraphQLString }
-            },
-            resolve (parent,args) {
-                return tasks.findOne({
-                   createdBy:args.id         
-                 });
-           }
-        
-     },
-        attendances:{
-            type: new GraphQLList(AttendanceType),
-            description: 'List of attendances',
-            resolve() {
-                return attendances.find({});
-            }
-        },
-
-
     
 })
 
