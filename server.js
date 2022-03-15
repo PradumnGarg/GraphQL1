@@ -1,8 +1,15 @@
+
+
 const express=require('express');
 
 const Mongoose=require('mongoose');
 
 const expressGraphQL=require('express-graphql').graphqlHTTP;
+
+const {
+    GraphQLTime,
+    GraphQLDate,
+     GraphQLDateTime } =require('graphql-iso-date');
 
 require('dotenv').config();
 
@@ -38,6 +45,11 @@ const employeeschema={
     },
     employeeId:String,
     workspace:Mongoose.Types.ObjectId,
+    status:Boolean,
+    createdBy:String,
+    isDeleted:Boolean,
+    createdAt:Date,
+    updatedAt:Date
 };
 
 const taskschema={
@@ -45,7 +57,12 @@ const taskschema={
     taskDescription:String,
     assignee:[String],
     taskStatus:String,
+    startDate:String,
+    dueDate:String
     },
+    status:Boolean,
+    createdAt:Date,
+    updatedAt:Date,
     createdBy:String,
     workspace:Mongoose.Types.ObjectId,
 };
@@ -63,12 +80,14 @@ const attendanceschema={
       coordinates: [Number]
     },
     workspace:Mongoose.Types.ObjectId,
-    date:String,
+    date:Date,
     loginTime:String,
     logoutTime:String,
     present:Boolean,
     isLeave:Boolean,
-    isHalfDay:Boolean
+    isHalfDay:Boolean,
+    createdAt:Date,
+    updatedAt:Date
 
 }
 
@@ -86,13 +105,16 @@ const EmployeeType = new GraphQLObjectType({
     name: 'Employees',   
     description: 'This represents list of employees',
     fields: () => ({
-        employeeId: { type: new GraphQLNonNull(GraphQLString) },
+        employeeId: {type: new GraphQLNonNull(GraphQLString) },
         data:{
             type:new GraphQLNonNull(new GraphQLObjectType({
                 name:'employeeData',
                 description:'This represents employee data',
                 fields:()=>({
-              name: { type: new GraphQLNonNull(GraphQLString) },
+              
+                    name: {  
+                  
+                type: new GraphQLNonNull(GraphQLString) },
                 phone: { type:  GraphQLString },
                 email: { type:  GraphQLString} ,
                 aadharCard: { type:  GraphQLString },
@@ -107,9 +129,15 @@ const EmployeeType = new GraphQLObjectType({
             }))
 
         },
-        workspace: { type: new GraphQLNonNull(GraphQLString) },
+        // workspace: { type: new GraphQLNonNull(GraphQLString) },
+        createdAt:{type:GraphQLDateTime},
+        updatedAt:{type:GraphQLDateTime},
+        createdBy:{type:GraphQLString},
+        // isDeleted:{type:GraphQLBoolean},
+        status:{type:GraphQLBoolean},
         tasks: {
             type: new GraphQLList(TaskType),
+
         
             resolve(parent) {
             
@@ -117,19 +145,7 @@ const EmployeeType = new GraphQLObjectType({
                     { workspace:parent.workspace,
                         "data.assignee":parent.employeeId
                     }
-                    // // [{
-                    // //     $lookup: {
-                    // //         from: 'employees',
-                    // //         localField: 'workspace',
-                    // //         foreignField: 'workspace',
-                    // //         as: 'tasks' 
-                    // //     }
-                    // // }
-
-                    //     // { assignee:{$in:parent.employeeId},
-                    //     // workspace:parent.workspace}
-                     
-                    // ]
+                   
                 );
             }
         },
@@ -158,27 +174,22 @@ const TaskType = new GraphQLObjectType({
                 description:'This represents task data',
                 fields:()=>({
                     taskDescription: { type:GraphQLString },
-                    assignee:{type:new GraphQLList(GraphQLString)},
+                    // assignee:{type:new GraphQLList(GraphQLString)},
                     taskStatus:{type:GraphQLString},
+                    startDate:{type:GraphQLString},
+                    dueDate:{type:GraphQLString}
+
                 })
             }))
 
 
     },
-    workspace: { type: new GraphQLNonNull(GraphQLString) },
+    // workspace: { type: new GraphQLNonNull(GraphQLString) },
     createdBy: { type: new GraphQLNonNull(GraphQLString) },
+    createdAt:{type:GraphQLDateTime},
+    updatedAt:{type:GraphQLDateTime},
+    status:{type:GraphQLBoolean}
 
-//     employees: {
-//         type: new GraphQLList(EmployeeType),
-//         resolve(parent) {
-//             return employees.find({
-//                 $and:[
-//                     {  $in:{employeeId, parent.assignee } },
-//                     {workspace:parent.workspace}
-//                 ]
-//             });
-// }
-//     }
 })
 })
 
@@ -199,14 +210,16 @@ const AttendanceType = new GraphQLObjectType({
                 })
             }))
         },
-        workspace: { type: new GraphQLNonNull(GraphQLString) },
-        date: { type: GraphQLString },
+        // workspace: { type: new GraphQLNonNull(GraphQLString) },
+        date: { type: GraphQLDate },
         loginTime: { type: GraphQLString },
-        logoutTime: { type: GraphQLString },
+        logoutTime: { type: GraphQLString},
         present: { type: new GraphQLNonNull(GraphQLBoolean) },
         isLeave: { type: new GraphQLNonNull(GraphQLBoolean) },
         isHalfDay: { type: new GraphQLNonNull(GraphQLBoolean) },
-    })
+        createdAt:{type:GraphQLDateTime},
+        updatedAt:{type:GraphQLDateTime}
+})
 })
 
 
@@ -218,26 +231,24 @@ const RootQueryType = new GraphQLObjectType({
     name: 'Query',
     description: 'Root Query',
     fields: () => ({
-        employeename: {
+        employee: {
             type:  EmployeeType,
             description: 'Single Employee',
             args: {
-                name: { type: GraphQLString }
+                id: { type: GraphQLString },
+                name: { type: GraphQLString } 
             },
-            resolve (parent,args) {   
-               return employees.findOne({"data.name":args.name});
+            resolve (parent,args) {
+                if(args.name){  
+               return employees.findOne({"data.name":args.name,
+                        isDeleted:false});
+                }
+                else if(args.id){
+                    return employees.findOne({employeeId:args.id,
+                        isDeleted:false});
+                }
             }
         },
-        employeeid: {
-            type:  EmployeeType,
-            description: 'Single Employee',
-            args: {
-                id: { type: GraphQLString }
-            },
-            resolve (parent,args) {   
-               return employees.findOne({employeeId:args.id});
-            }
-        }, 
     
 })
 
@@ -250,11 +261,10 @@ const schema=new GraphQLSchema({
 
 
 
-
-
 app.use('/graphql', expressGraphQL({
     schema: schema,
     graphiql: true,
   }));
 
 app.listen(5000,()=>{console.log('Server running on port 5000')});
+
