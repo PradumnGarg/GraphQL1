@@ -100,6 +100,29 @@ const attendances=Mongoose.model('attendances',attendanceschema);
 
 
 
+// interface EmployeeData{
+//     // data:{
+//     // type:new GraphQLNonNull(new GraphQLObjectType({
+//     //     name:'employeeData',
+//     //     description:'This represents employee data',
+//     //     fields:()=>({
+      
+//             name: {  type: new GraphQLNonNull(GraphQLString) },
+//         phone: { type:  GraphQLString },
+//         email: { type:  GraphQLString} ,
+//         aadharCard: { type:  GraphQLString },
+//         voterCard: { type: GraphQLString },
+//         driverLicense: { type:  GraphQLString },
+//         salary: { type:  GraphQLString },
+//         salaryCycle: { type:  GraphQLString },
+//         residentialAddress: { type:  GraphQLString },
+//         employmentType: { type:  GraphQLString },
+
+//     //     })
+//     // }))
+
+// }
+
 
 const EmployeeType = new GraphQLObjectType({
     name: 'Employees',   
@@ -111,24 +134,20 @@ const EmployeeType = new GraphQLObjectType({
                 name:'employeeData',
                 description:'This represents employee data',
                 fields:()=>({
-              
-                    name: {  
-                  
-                type: new GraphQLNonNull(GraphQLString) },
-                phone: { type:  GraphQLString },
-                email: { type:  GraphQLString} ,
-                aadharCard: { type:  GraphQLString },
-                voterCard: { type: GraphQLString },
-                driverLicense: { type:  GraphQLString },
-                salary: { type:  GraphQLString },
-                salaryCycle: { type:  GraphQLString },
-                residentialAddress: { type:  GraphQLString },
-                employmentType: { type:  GraphQLString },
-
+                    name: {  type: new GraphQLNonNull(GraphQLString) },
+                            phone: { type:  GraphQLString },
+                            email: { type:  GraphQLString} ,
+                            aadharCard: { type:  GraphQLString },
+                            voterCard: { type: GraphQLString },
+                            driverLicense: { type:  GraphQLString },
+                            salary: { type:  GraphQLString },
+                            salaryCycle: { type:  GraphQLString },
+                            residentialAddress: { type:  GraphQLString },
+                            employmentType: { type:  GraphQLString },
                 })
             }))
-
         },
+        
         // workspace: { type: new GraphQLNonNull(GraphQLString) },
         createdAt:{type:GraphQLDateTime},
         updatedAt:{type:GraphQLDateTime},
@@ -173,7 +192,9 @@ const TaskType = new GraphQLObjectType({
                 name:'taskData',
                 description:'This represents task data',
                 fields:()=>({
-                    taskDescription: { type:GraphQLString },
+                    taskDescription: {
+                    
+                        type:GraphQLString },
                     // assignee:{type:new GraphQLList(GraphQLString)},
                     taskStatus:{type:GraphQLString},
                     startDate:{type:GraphQLString},
@@ -232,21 +253,26 @@ const RootQueryType = new GraphQLObjectType({
     description: 'Root Query',
     fields: () => ({
         employee: {
-            type:  EmployeeType,
+            type:  new GraphQLList(EmployeeType),
             description: 'Single Employee',
             args: {
-                id: { type: GraphQLString },
-                name: { type: GraphQLString } 
+                // id: { type: GraphQLString },
+                query: { type: GraphQLString } 
             },
             resolve (parent,args) {
-                if(args.name){  
-               return employees.findOne({"data.name":args.name,
+
+                console.log(args.query); 
+               return employees.find({
+                   $or: [
+                       {"data.name":args.query},
+                       {employeeId:args.query}
+                   ],
                         isDeleted:false});
-                }
-                else if(args.id){
-                    return employees.findOne({employeeId:args.id,
-                        isDeleted:false});
-                }
+                
+                // else if(args.id){
+                //     return employees.find({employeeId:args.id,
+                //         isDeleted:false});
+                // }
             }
         },
     
